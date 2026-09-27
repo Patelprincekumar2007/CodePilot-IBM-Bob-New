@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Sparkles,
   FileCheck2,
+  Cpu,
 } from 'lucide-react';
 import { formatDuration, formatDate } from '../../lib/utils';
 
@@ -26,6 +27,9 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
   onAdvanceStage,
   isAdvancing,
 }) => {
+  const isLiveAI = (investigation as any).isLiveAI;
+  const aiProvider = (investigation as any).aiProvider || (investigation.isDemoScenario ? 'demo' : 'gemini');
+
   return (
     <div className="p-5 rounded-xl bg-background-elevated border border-border">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -36,6 +40,19 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
               {investigation.id}
             </span>
             <StatusBadge status={investigation.status} />
+
+            {/* AI Provider Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-purple-950/30 border border-purple-500/30 text-xs font-mono text-purple-300">
+              <Cpu className="w-3.5 h-3.5 text-purple-400" />
+              <span className="font-bold uppercase">
+                {aiProvider === 'gemini'
+                  ? 'Gemini Live AI'
+                  : aiProvider === 'grok'
+                  ? 'Grok Live AI'
+                  : 'Demo Mode (AST)'}
+              </span>
+            </div>
+
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-background-tertiary text-xs font-mono text-console-muted">
               <FolderGit2 className="w-3.5 h-3.5 text-accent-indigo" />
               <span>{investigation.repository}</span>
@@ -43,11 +60,6 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
               <GitBranch className="w-3 h-3 text-console-dim" />
               <span>{investigation.branch}</span>
             </div>
-            {investigation.isDemoScenario && (
-              <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-[11px] font-mono text-purple-300">
-                ★ Seeded Scenario
-              </span>
-            )}
           </div>
 
           <h1 className="text-xl font-bold font-mono tracking-tight text-white">

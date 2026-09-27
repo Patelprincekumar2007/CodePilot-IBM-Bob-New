@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -9,15 +9,29 @@ import {
   RotateCcw,
   CheckCircle2,
   Key,
-  Sliders,
-  Bell,
-  Database,
+  Globe,
+  RefreshCw,
 } from 'lucide-react';
 import { getStoredSettings, saveStoredSettings, resetStoredData, AppSettings } from '../lib/storage';
+import { investigationApi, AIProviderStatus } from '../api/investigations';
 
 export const Settings: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(getStoredSettings());
+  const [providerStatus, setProviderStatus] = useState<AIProviderStatus | null>(null);
   const [saved, setSaved] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchStatus = () => {
+    setIsRefreshing(true);
+    investigationApi
+      .getProviderStatus()
+      .then((res) => setProviderStatus(res))
+      .finally(() => setIsRefreshing(false));
+  };
+
+  useEffect(() => {
+    fetchStatus();
+  }, []);
 
   const handleSave = () => {
     saveStoredSettings(settings);
@@ -35,63 +49,111 @@ export const Settings: React.FC = () => {
   return (
     <div className="space-y-6 font-mono text-xs pb-12">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-          <SettingsIcon className="w-5 h-5 text-accent-indigo" />
-          <span>Platform Settings & Orchestration Config</span>
-        </h1>
-        <p className="mt-1 text-xs text-console-muted font-sans">
-          Configure IBM Bob 2.0 connection, reasoning models, human approval gates, and telemetry.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <SettingsIcon className="w-5 h-5 text-accent-indigo" />
+            <span>Platform Settings & AI Provider Diagnostics</span>
+          </h1>
+          <p className="mt-1 text-xs text-console-muted font-sans">
+            Configure Gemini and Grok backend connections, autonomous reasoning models, and safety gates.
+          </p>
+        </div>
+
+        <Button
+          size="sm"
+          variant="secondary"
+          isLoading={isRefreshing}
+          onClick={fetchStatus}
+          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+        >
+          Check AI Health
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: General Settings */}
         <div className="lg:col-span-8 space-y-5">
-          {/* IBM Bob 2.0 Connection */}
+          {/* AI Providers Live Status Card */}
           <Card className="border-indigo-500/30 bg-background-card">
             <CardHeader className="py-3 px-4 bg-background-elevated/70">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-4 h-4 text-accent-indigo" />
-                  <CardTitle>IBM Bob 2.0 Autonomous Engine</CardTitle>
+                  <CardTitle>AI Reasoning Providers (Backend Connected)</CardTitle>
                 </div>
-                <Badge variant="success" size="sm">
-                  CONNECTED
+                <Badge
+                  variant={
+                    providerStatus?.active_provider !== 'demo-ast' ? 'success' : 'warning'
+                  }
+                  size="sm"
+                >
+                  ACTIVE: {providerStatus?.active_provider?.toUpperCase() || 'DEMO-AST'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="block text-console-dim mb-1 font-semibold">Active Reasoner Model</label>
-                <select
-                  value={settings.defaultModel}
-                  onChange={(e) => setSettings({ ...settings, defaultModel: e.target.value })}
-                  className="w-full px-3 py-2 rounded bg-background border border-border text-console-text focus:outline-none focus:border-accent-indigo font-mono text-xs"
-                >
-                  <option value="IBM Bob 2.0 (Deep Code Reasoner)">
-                    IBM Bob 2.0 (Deep Code Reasoner) — Default
-                  </option>
-                  <option value="IBM Bob 2.0 Fast AST Engine">
-                    IBM Bob 2.0 Fast AST Engine
-                  </option>
-                  <option value="IBM Bob 2.0 Extended Verification Engine">
-                    IBM Bob 2.0 Extended Verification Engine
-                  </option>
-                </select>
+              {/* Status List */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Gemini */}
+                <div className="p-3 rounded-lg bg-background-elevated border border-border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white">Google Gemini</span>
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        providerStatus?.providers.gemini.configured
+                          ? 'bg-emerald-400 animate-pulse'
+                          : 'bg-amber-400'
+                      }`}
+                    />
+                  </div>
+                  <div className="text-[11px] text-console-dim">
+                    {providerStatus?.providers.gemini.configured
+                      ? 'Live API Active'
+                      : 'Add GEMINI_API_KEY in .env'}
+                  </div>
+                  <div className="text-[10px] text-indigo-300 font-mono">
+                    {providerStatus?.providers.gemini.model}
+                  </div>
+                </div>
+
+                {/* Grok */}
+                <div className="p-3 rounded-lg bg-background-elevated border border-border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white">xAI Grok</span>
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        providerStatus?.providers.grok.configured
+                          ? 'bg-emerald-400 animate-pulse'
+                          : 'bg-amber-400'
+                      }`}
+                    />
+                  </div>
+                  <div className="text-[11px] text-console-dim">
+                    {providerStatus?.providers.grok.configured
+                      ? 'Live API Active'
+                      : 'Add GROK_API_KEY in .env'}
+                  </div>
+                  <div className="text-[10px] text-indigo-300 font-mono">
+                    {providerStatus?.providers.grok.model}
+                  </div>
+                </div>
+
+                {/* IBM Bob AST */}
+                <div className="p-3 rounded-lg bg-background-elevated border border-border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white">IBM Bob 2.0 AST</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  </div>
+                  <div className="text-[11px] text-emerald-400 font-bold">Local Engine Ready</div>
+                  <div className="text-[10px] text-console-dim font-mono">AST Heuristics</div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-console-dim mb-1 font-semibold">API Session Key</label>
-                <div className="relative">
-                  <Key className="w-3.5 h-3.5 text-console-dim absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={settings.apiKey}
-                    onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
-                    className="w-full pl-9 pr-3 py-1.5 rounded bg-background border border-border text-console-text font-mono text-xs focus:outline-none focus:border-accent-indigo"
-                  />
-                </div>
+              {/* Instructions */}
+              <div className="p-3 rounded-lg bg-background border border-border text-[11px] text-console-muted font-sans leading-relaxed">
+                <span className="font-mono font-semibold text-white">To enable Live Gemini or Grok: </span>
+                Add <code className="text-indigo-300 bg-background-elevated px-1 py-0.5 rounded">GEMINI_API_KEY=...</code> or <code className="text-indigo-300 bg-background-elevated px-1 py-0.5 rounded">GROK_API_KEY=...</code> to your <code className="text-indigo-300 bg-background-elevated px-1 py-0.5 rounded">.env</code> file. No keys are ever exposed in the frontend.
               </div>
             </CardContent>
           </Card>
@@ -174,12 +236,12 @@ export const Settings: React.FC = () => {
                 <span className="text-emerald-400 font-bold">localhost:8000 (Online)</span>
               </div>
               <div className="flex justify-between py-1 border-b border-border">
-                <span className="text-console-dim">Test Suite:</span>
-                <span className="text-white font-bold">pytest 9.1.1</span>
+                <span className="text-console-dim">Test Runner:</span>
+                <span className="text-white font-bold">pytest 9.1.1 (41 tests)</span>
               </div>
               <div className="flex justify-between py-1 border-b border-border">
-                <span className="text-console-dim">Repository:</span>
-                <span className="text-white font-bold">Patelprincekumar2007/CodePilot-IBM-Bob</span>
+                <span className="text-console-dim">Repository Store:</span>
+                <span className="text-white font-bold">./storage/repositories</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-console-dim">Frontend:</span>

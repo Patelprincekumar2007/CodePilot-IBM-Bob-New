@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useInvestigation } from '../hooks/useInvestigation';
 import { useEvidence } from '../hooks/useEvidence';
+import { repositoryApi } from '../api/repositories';
 import { InvestigationHeader } from '../components/investigation/InvestigationHeader';
 import { WorkflowStepper } from '../components/investigation/WorkflowStepper';
 import { FindingCard } from '../components/investigation/FindingCard';
@@ -26,7 +27,6 @@ import {
   CheckCircle2,
   FileCheck2,
   ShieldCheck,
-  AlertTriangle,
 } from 'lucide-react';
 import { InvestigationStage } from '../types/investigation';
 
@@ -49,7 +49,38 @@ export const InvestigationDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState('findings');
   const [selectedFile, setSelectedFile] = useState<string>('src/services/project_service.py');
   const [targetLine, setTargetLine] = useState<number | undefined>(42);
+  const [realFileCode, setRealFileCode] = useState<string>('');
   const [isReportOpen, setIsReportOpen] = useState(false);
+
+  // Initialize selected file and target line from first finding
+  useEffect(() => {
+    if (investigation && investigation.findings.length > 0) {
+      const f = investigation.findings[0];
+      setSelectedFile(f.file);
+      setTargetLine(f.lineStart);
+    }
+  }, [investigation?.id]);
+
+  // Fetch real file content from repository API
+  useEffect(() => {
+    if (investigation && selectedFile) {
+      repositoryApi
+        .readFile(investigation.repository || 'taskflow-api', selectedFile)
+        .then((code) => {
+          if (code && !code.startsWith('# Could not read')) {
+            setRealFileCode(code);
+          } else {
+            // Fallback to finding snippet
+            const f = investigation.findings.find((x) => x.file === selectedFile);
+            setRealFileCode(f?.codeSnippet || '# File content');
+          }
+        })
+        .catch(() => {
+          const f = investigation.findings.find((x) => x.file === selectedFile);
+          setRealFileCode(f?.codeSnippet || '# File content');
+        });
+    }
+  }, [investigation?.repository, selectedFile]);
 
   if (isLoading) {
     return (
@@ -72,13 +103,8 @@ export const InvestigationDetail: React.FC = () => {
     );
   }
 
-  // Active code representation
   const activeFinding = investigation.findings[0];
   const activeDiff = investigation.diffs[0];
-  const currentCode =
-    activeFinding?.fixedSnippet && investigation.status === 'verified'
-      ? activeFinding.fixedSnippet
-      : activeFinding?.codeSnippet || '# Code snippet';
 
   const handleSelectCode = (file: string, line?: number) => {
     setSelectedFile(file);
@@ -106,7 +132,7 @@ export const InvestigationDetail: React.FC = () => {
   const tabs = [
     {
       id: 'findings',
-      label: 'Findings & Code',
+      label: 'Findings & Real Source',
       icon: <Code2 className="w-3.5 h-3.5" />,
       count: investigation.findings.length,
     },
@@ -124,7 +150,7 @@ export const InvestigationDetail: React.FC = () => {
     },
     {
       id: 'impact',
-      label: 'Impact Graph',
+      label: 'Impact Topology',
       icon: <GitFork className="w-3.5 h-3.5" />,
     },
     {
@@ -169,14 +195,14 @@ export const InvestigationDetail: React.FC = () => {
       <div className="space-y-4">
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-        {/* Tab 1: Findings & Code */}
+        {/* Tab 1: Findings & Real Source Code */}
         {activeTab === 'findings' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Left: Findings list */}
             <div className="lg:col-span-5 space-y-4">
               <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between px-1">
                 <span>Diagnosed Findings ({investigation.findings.length})</span>
-                <span className="text-[10px] text-console-dim">AST-Backed</span>
+                <span className="text-[10px] text-console-dim">AST / Real File Grounded</span>
               </div>
 
               {investigation.findings.map((f) => (
@@ -212,14 +238,14 @@ export const InvestigationDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Monaco Code Viewer */}
+            {/* Right: Monaco Code Viewer with Real File Content */}
             <div className="lg:col-span-7 space-y-2">
               <div className="text-xs font-bold text-white uppercase tracking-wider px-1">
-                Monaco Code Viewer
+                Monaco Real Source Code Viewer
               </div>
               <MonacoCodeViewer
-                filePath={selectedFile || activeFinding?.file || 'src/services/project_service.py'}
-                code={currentCode}
+                filePath={selectedFile}
+                code={realFileCode || activeFinding?.codeSnippet || '# Code snippet'}
                 targetLine={targetLine}
                 height="540px"
               />
@@ -230,7 +256,6 @@ export const InvestigationDetail: React.FC = () => {
         {/* Tab 2: Diff & Human Approval */}
         {activeTab === 'diff' && (
           <div className="space-y-6">
-            {/* Human in the loop Approval Panel */}
             <ApprovalPanel
               investigation={investigation}
               onApprove={async (comment) => {
@@ -242,7 +267,6 @@ export const InvestigationDetail: React.FC = () => {
               isLoading={isApproving}
             />
 
-            {/* Monaco Diff Viewer */}
             {activeDiff && (
               <MonacoDiffViewer diff={activeDiff} height="420px" />
             )}

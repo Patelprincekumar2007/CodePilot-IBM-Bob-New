@@ -24,6 +24,8 @@ dist/
 .ipynb_checkpoints/
 
 node_modules/
+frontend/dist/
+storage/
 
 .DS_Store
 Thumbs.db

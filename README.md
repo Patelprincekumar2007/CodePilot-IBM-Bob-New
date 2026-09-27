@@ -1,538 +1,158 @@
-# CodePilot — AI-Assisted Debugging Workflow
+# CodePilot — AI-Powered Autonomous Debugging & Repository Investigation Platform
 
-> **Discover. Diagnose. Fix. Verify.**
+> **AI Proposes. Evidence Proves. Humans Decide.**
 
-CodePilot is an AI-assisted developer workflow built using **IBM Bob 2.0** to help developers diagnose and resolve bugs in an unfamiliar codebase.
-
-Instead of treating AI as a simple code generator, CodePilot uses Bob 2.0 across a structured debugging and verification workflow:
-
-```text
-Bug Report
-    ↓
-Repository Analysis
-    ↓
-Issue Reproduction
-    ↓
-Root Cause Investigation
-    ↓
-Minimal Fix
-    ↓
-Regression Tests
-    ↓
-Full Test Suite
-    ↓
-Verification
-```
+CodePilot is an autonomous, AI-driven developer investigation platform built for rapid bug diagnosis, AST multi-layer tracing, fix proposal, regression test synthesis, and test verification.
 
 ---
 
-## Problem
+## 🚀 Quickstart (Run on Local PC)
 
-Debugging an unfamiliar codebase often requires developers to manually:
+### 1. Prerequisites
+* **Python**: `3.10+` (e.g. Python 3.11 / 3.12 / 3.14)
+* **Node.js**: `v18+` or `v20+` (npm included)
+* **Git**
 
-- understand the repository architecture
-- locate relevant files
-- trace API → service → repository logic
-- reproduce the reported issue
-- identify the root cause
-- implement a safe fix
-- determine whether related issues exist
-- write regression tests
-- run the complete test suite
-
-This creates additional investigation time and increases the possibility of incomplete fixes or regressions.
-
----
-
-## Solution
-
-**CodePilot** demonstrates an AI-assisted debugging workflow where **IBM Bob 2.0 works directly with the repository** to investigate issues, reason across multiple layers of the application, implement targeted fixes, and validate the result with automated tests.
-
-The workflow is demonstrated using **TaskFlow API**, a realistic FastAPI task-management backend containing intentionally introduced defects.
-
-The goal is not simply to generate code, but to support the complete developer workflow:
-
-```text
-Understand
-    ↓
-Investigate
-    ↓
-Fix
-    ↓
-Test
-    ↓
-Verify
-```
-
----
-
-# Demonstrated Workflow
-
-## 1. Developer Reports a Bug
-
-Example developer report:
-
-> Project progress is incorrect when a project contains both completed and incomplete tasks.
-
-Instead of immediately changing code, Bob is used to investigate the issue.
-
-## 2. Repository Analysis
-
-Bob analyzes the existing codebase and traces the request through the application layers:
-
-```text
-HTTP Request
-     ↓
-API Layer
-     ↓
-Service Layer
-     ↓
-Repository Layer
-     ↓
-In-Memory Store
-```
-
-## 3. Reproduce and Identify Root Cause
-
-For the progress issue, the investigation identified that completed tasks were being counted using the wrong status comparison.
-
-The problematic logic treated non-`DONE` tasks as completed.
-
-The expected behavior was:
-
-```text
-completed task
-      ↓
-status == DONE
-      ↓
-count as completed
-```
-
-Bob identified the root cause and proposed a minimal change.
-
-## 4. Implement the Fix
-
-The production code was updated with targeted changes rather than rewriting unrelated parts of the application.
-
-During full-suite verification, additional related defects were exposed:
-
-- task status updates were not persisting the requested status
-- task filtering arguments were incorrectly mapped
-
-These were corrected and verified through the test suite.
-
-## 5. Regression Testing
-
-After the production fixes, Bob reviewed the existing tests and identified important missing edge cases.
-
-Additional regression coverage includes:
-
-- valid `BLOCKED` status
-- `DONE` status persistence
-- updating a non-existent task
-- assigning a non-existent task
-- preserving assignee during status updates
-- preserving status during assignment
-- excluding tasks from other projects
-- handling filters with no matches
-- excluding unassigned tasks from assignee filtering
-- combined project + status filtering
-
----
-
-# IBM Bob 2.0 Usage
-
-IBM Bob 2.0 was used as an active development partner across multiple stages of the workflow.
-
-### Bob was used for:
-
-- repository-level investigation
-- application-flow tracing
-- bug reproduction
-- root-cause analysis
-- targeted production-code fixes
-- full test execution
-- investigation of additional reported issues
-- identification of missing regression coverage
-- regression test implementation
-- final verification
-
-The project demonstrates Bob working with an actual multi-layer repository rather than generating isolated code snippets.
-
----
-
-# Evidence of Bob Usage
-
-Bob task-session screenshots are stored in:
-
-```text
-bob_sessions/
-```
-
-Current evidence includes:
-
-```text
-bob_sessions/
-├── 01_progress_investigation.png
-├── 02_progress_fix_verification.png
-├── 03_status_investigation.png
-├── 03_assignee_investigation.png
-└── 04_regression_tests.png
-```
-
----
-
-# Target Application: TaskFlow API
-
-**TaskFlow API** is a self-contained task and project management backend built with Python and FastAPI.
-
-It provides:
-
-- User management
-- Project management
-- Project membership
-- Task management
-- Task assignment
-- Task status updates
-- Task filtering
-- Project progress calculation
-- In-memory data storage
-- REST API
-- Automated tests
-
-No external database or infrastructure is required.
-
----
-
-# Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| Python | Backend development |
-| FastAPI | REST API framework |
-| Pydantic | Request/response validation |
-| pytest | Automated testing |
-| Uvicorn | Development server |
-| IBM Bob 2.0 | AI-assisted development workflow |
-
----
-
-# Architecture
-
-```text
-                    ┌───────────────────┐
-                    │   HTTP Request    │
-                    └─────────┬─────────┘
-                              ↓
-                    ┌───────────────────┐
-                    │    API Layer      │
-                    │     FastAPI       │
-                    └─────────┬─────────┘
-                              ↓
-                    ┌───────────────────┐
-                    │  Service Layer    │
-                    │  Business Logic   │
-                    └─────────┬─────────┘
-                              ↓
-                    ┌───────────────────┐
-                    │ Repository Layer  │
-                    │   Data Access     │
-                    └─────────┬─────────┘
-                              ↓
-                    ┌───────────────────┐
-                    │ In-Memory Storage │
-                    └───────────────────┘
-```
-
-Detailed architecture: [docs/architecture.md](docs/architecture.md)
-
-API documentation: [docs/api.md](docs/api.md)
-
----
-
-# Project Structure
-
-```text
-CodePilot-IBM-Bob/
-├── src/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── dependencies.py
-│   ├── models/
-│   ├── schemas/
-│   ├── repositories/
-│   ├── services/
-│   ├── api/
-│   └── utils/
-├── tests/
-│   ├── __init__.py
-│   ├── test_users.py
-│   ├── test_projects.py
-│   ├── test_tasks.py
-│   └── test_progress.py
-├── docs/
-│   ├── architecture.md
-│   └── api.md
-├── bob_sessions/
-│   ├── 01_progress_investigation.png
-│   ├── 02_progress_fix_verification.png
-│   ├── 03_status_investigation.png
-│   ├── 03_assignee_investigation.png
-│   └── 04_regression_tests.png
-├── data/
-│   ├── bug_reports.json
-│   └── README.md
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
-
----
-
-# API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/health` | Health check |
-| POST | `/users` | Create user |
-| GET | `/users` | List users |
-| GET | `/users/{id}` | Get user |
-| POST | `/projects` | Create project |
-| GET | `/projects` | List projects |
-| GET | `/projects/{id}` | Get project |
-| POST | `/projects/{id}/members` | Add project member |
-| GET | `/projects/{id}/progress` | Get project progress |
-| POST | `/tasks` | Create task |
-| GET | `/tasks` | List/filter tasks |
-| GET | `/tasks/{id}` | Get task |
-| PATCH | `/tasks/{id}/status` | Update task status |
-| PUT | `/tasks/{id}/assign` | Assign task |
-
----
-
-# Task Statuses
-
-| Status | Meaning |
-|---|---|
-| `TODO` | Not started |
-| `IN_PROGRESS` | Currently being worked on |
-| `DONE` | Completed |
-| `BLOCKED` | Blocked by a dependency |
-
----
-
-# Installation
-
+### 2. Clone the Repository
 ```bash
 git clone https://github.com/Patelprincekumar2007/CodePilot-IBM-Bob.git
 cd CodePilot-IBM-Bob
+```
+
+### 3. Backend Setup & Run
+```bash
+# Create and activate Python virtual environment
+python3 -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+
+# Install backend dependencies
 pip install -r requirements.txt
+
+# (Optional) Add your AI keys to .env
+cp .env.example .env
+# Edit .env and add GEMINI_API_KEY=... or GROK_API_KEY=...
+
+# Start FastAPI Backend Server
+uvicorn src.main:app --reload --port 8000
 ```
+Backend is live at: `http://localhost:8000` (Swagger docs at `http://localhost:8000/docs`).
 
----
-
-# Running the API
-
+### 4. Frontend Setup & Run (React + Vite + TypeScript)
+In a new terminal window:
 ```bash
-uvicorn src.main:app --reload
+cd frontend
+npm install
+npm run dev
 ```
+Frontend is live at: **[http://localhost:3000](http://localhost:3000)**.
 
-API:
-
-```text
-http://localhost:8000
-```
-
-Interactive documentation:
-
-```text
-http://localhost:8000/docs
-```
-
----
-
-# Running Tests
-
+### 5. Running Automated Tests
 ```bash
+source venv/bin/activate
 pytest
 ```
-
-Current verified result:
-
-```text
-41 passed
-80 warnings
-```
-
-All 41 collected tests currently pass.
-
-The warnings are existing `datetime.utcnow()` deprecation warnings and do not cause test failures.
+Verified result: **41 passed** across all test suites.
 
 ---
 
-# Test Coverage
+## 🧠 AI Provider Integration (Gemini & Grok)
 
-### Users
-
-- user creation
-- duplicate email validation
-- invalid email validation
-- user retrieval
-- missing user handling
-- user listing
-
-### Projects
-
-- project creation
-- owner validation
-- project retrieval
-- missing project handling
-- project listing
-- member management
-- invalid member handling
-- idempotent member addition
-
-### Tasks
-
-- task creation
-- project validation
-- assignee validation
-- task retrieval
-- missing task handling
-- task assignment
-- status updates
-- invalid status handling
-- task filtering
-- combined filters
-- field preservation
-- regression scenarios
-
-### Project Progress
-
-- zero tasks
-- all TODO tasks
-- partially completed projects
-- fully completed projects
-- missing project handling
-
----
-
-# Development Evidence
-
-The CodePilot workflow produced the following development sequence:
+CodePilot features a unified AI provider interface:
 
 ```text
-1. Progress bug investigation
-            ↓
-2. Progress bug fix and full verification
-            ↓
-3. Status update investigation
-            ↓
-4. Assignee/filter investigation
-            ↓
-5. Regression test analysis
-            ↓
-6. Additional regression tests
-            ↓
-7. Full test verification
+React Frontend
+      ↓
+FastAPI Backend (src/api/)
+      ↓
+AIService (src/ai/service.py)
+ ┌────────────┼────────────┐
+ ↓            ↓            ↓
+Gemini       Grok       IBM Bob AST
+(Google)    (xAI)     (Local Engine)
 ```
 
-Final verification:
+### Supported Providers:
+1. **Google Gemini (`gemini-1.5-flash` / `gemini-1.5-pro`)**: Deep AST code reasoning and fix formulation.
+2. **xAI Grok (`grok-2-latest` / `grok-beta`)**: Autonomous defect investigation and regression test synthesis.
+3. **IBM Bob 2.0 Local AST Engine**: High-fidelity zero-config local heuristics engine that operates without API keys for demo and offline environments.
 
-```text
-41 / 41 tests passing
+### Environment Configuration (`.env`)
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GROK_API_KEY=your_grok_api_key_here
+DEFAULT_AI_PROVIDER=gemini
+MAX_UPLOAD_SIZE_MB=100
+MAX_FILE_SIZE_MB=2
+REPOSITORY_STORAGE_PATH=./storage/repositories
 ```
 
 ---
 
-# Developer Workflow
+## 📦 Repository Ingestion (ZIP Upload & Git Clones)
+
+CodePilot allows you to analyze any codebase:
+* **Upload ZIP**: Drag-and-drop or browse `.zip` archives. CodePilot extracts files into isolated storage, validates paths against directory traversal, and builds an interactive file tree.
+* **Connect Git**: Enter a public/private Git repository URL and branch name. CodePilot shallow-clones the repo and parses AST structures.
+* **TaskFlow Demo Repository**: Built-in testbed for instant evaluation of real bug scenarios.
+
+---
+
+## 🖥 Application Architecture & Routes
 
 ```text
-┌──────────────────────┐
-│   Developer Bug      │
-│       Report         │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ Repository Analysis  │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ Reproduce the Issue  │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ Root Cause Analysis  │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│    Minimal Fix       │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ Regression Tests     │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ Full Test Suite      │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│      Verification    │
-└──────────────────────┘
+CodePilot-IBM-Bob/
+├── frontend/                     # React 18 + Vite + TypeScript + Tailwind UI
+│   ├── src/
+│   │   ├── app/                  # React Router & QueryClient providers
+│   │   ├── api/                  # Typed backend clients (repos, investigations, tests)
+│   │   ├── components/
+│   │   │   ├── layout/           # AppShell, Topbar, Sidebar, CommandPalette (⌘K)
+│   │   │   ├── investigation/    # Stepper, FindingCard, MonacoCodeViewer, ApprovalPanel
+│   │   │   ├── code/             # MonacoCodeViewer, MonacoDiffViewer, FileTreeExplorer
+│   │   │   ├── review/           # Interactive ImpactGraph, ReviewPanel checklists
+│   │   │   ├── tests/            # TestRunCard, regression test assertions
+│   │   │   └── dashboard/        # IssueComposer, DemoScenarioSelector, Metrics
+│   │   └── pages/                # Dashboard, Investigations, Detail, Repos, Evidence, Settings
+├── src/                          # FastAPI Backend
+│   ├── ai/                       # GeminiProvider, GrokProvider, AIService
+│   ├── analysis/                 # RepositoryAnalyzer (languages, frameworks, entrypoints)
+│   ├── services/                 # RepositoryIngestion, TaskService, ProjectService, UserService
+│   ├── api/                      # RepositoriesRouter, InvestigationsRouter, TaskFlow Routers
+│   └── main.py                   # FastAPI Application Entrypoint
+├── tests/                        # Automated Pytest Suite (41 tests)
+├── data/                         # Real Bug Reports JSON
+└── docs/                         # Architecture & Frontend-Backend Contract
 ```
 
 ---
 
-# Dataset
+## 🔍 Demonstrated Bug Scenarios (TaskFlow API)
 
-CodePilot includes a small **synthetic, team-created** bug-report dataset at `data/bug_reports.json`.
+1. **Incorrect Project Progress Calculation (`INV-001`)**:
+   - *Location*: `src/services/project_service.py:42`
+   - *Defect*: `t.status != TaskStatus.DONE` inverted the percentage of completed tasks.
+   - *Fix*: Replaced with `t.status == TaskStatus.DONE`.
+   - *Regressions*: `test_progress_with_mixed_task_states`, `test_progress_with_no_completed_tasks`, `test_progress_with_all_completed_tasks`.
 
-It contains three records — one per debugging scenario — with the following fields:
+2. **Task Status Update Not Persisting (`INV-002`)**:
+   - *Location*: `src/services/task_service.py:73`
+   - *Defect*: Returned task without assigning `task.status = status`.
+   - *Fix*: Added explicit `task.status = status` before persisting.
+   - *Regressions*: `test_update_task_status_done`, `test_status_update_preserves_assignee`.
 
-| Field | Description |
-|---|---|
-| `bug_id` | Stable identifier (`BUG-001` to `BUG-003`) |
-| `title` | Short issue title |
-| `description` | Full symptom description |
-| `expected_behavior` | What the API should do |
-| `actual_behavior` | What the API actually does (the wrong behavior) |
-| `affected_area` | Architectural layer |
-| `affected_file` | Repository-relative path |
-| `affected_function` | Defective function name |
-| `severity` | Developer-assigned triage severity |
-| `status` | `fixed` for all three records |
-
-The dataset is loaded by `demo/app.py` at startup and its `expected_behavior`, `actual_behavior`, `bug_id`, `severity`, and `status` fields are displayed in the Issue card on the Investigate page, anchoring the structured bug-report input to the full investigation chain.
-
-The dataset contains no real people's names, email addresses, personal information, confidential information, or externally scraped data. See `data/README.md` for full documentation.
+3. **Task Filter Arguments Swapped (`INV-003`)**:
+   - *Location*: `src/api/tasks.py:34`
+   - *Defect*: `status` and `assignee_id` query arguments were forwarded in inverted order.
+   - *Fix*: Mapped `status=status` and `assignee_id=assignee_id`.
+   - *Regressions*: `test_list_tasks_by_status`, `test_list_tasks_by_assignee`.
 
 ---
 
-# Project Status
+## 🏆 Key Features
 
-CodePilot currently demonstrates a working AI-assisted debugging workflow using IBM Bob 2.0 on a multi-layer FastAPI codebase.
-
-The prototype has:
-
-- a working backend application
-- intentionally introduced debugging scenarios
-- Bob-assisted investigations
-- targeted production fixes
-- regression test improvements
-- Bob session evidence
-- automated verification
-- 41 passing tests
-
-```text
-Status: Working Prototype
-Test Status: 41 / 41 Passing
-```
-
----
-
-# Team
-
-**CodePilot**
-
-Built for the **IBM Bob 2.0 Hackathon 2026**.
+* **Evidence-Backed Findings**: Every finding specifies exact file, line number, confidence score, observed vs expected behavior, and code snippet.
+* **Monaco Code & Diff Viewer**: Side-by-side diffs with a *"Why this change?"* explanation.
+* **Human-in-the-Loop Approval**: Strict verification gates where engineers inspect and approve diffs before patches are applied.
+* **Interactive Impact Graph**: Visual topology of affected endpoints, services, schemas, and test suites.
+* **Automated Pytest Execution**: One-click real test runner execution verifying all 41 unit & regression tests.
+* **Command Palette (`Cmd/Ctrl + K`)**: Instant keyboard navigation across investigations, repositories, and tools.

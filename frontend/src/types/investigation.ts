@@ -160,6 +160,11 @@ export interface Investigation {
     comment?: string;
   };
 
+  // Evidence & AI Provider Metadata
+  evidence?: any[];
+  aiProvider?: string;
+  isLiveAI?: boolean;
+
   // Validation & Reviews
   testRun?: TestRunSummary;
   review?: IndependentReview;
@@ -169,6 +174,7 @@ export interface CreateInvestigationInput {
   repository: string;
   branch: string;
   issue: string;
+  ai_provider?: string;
   expectedBehavior?: string;
   actualBehavior?: string;
   reproductionSteps?: string;
