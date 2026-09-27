@@ -25,6 +25,8 @@ dist/
 
 node_modules/
 frontend/dist/
+frontend/.vite/
+.vite/
 storage/
 
 .DS_Store
