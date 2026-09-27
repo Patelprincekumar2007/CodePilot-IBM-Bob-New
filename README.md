@@ -124,7 +124,7 @@ CodePilot includes three built-in benchmark bug investigations targetting real-w
 └─────────┴───────────────────────────────┴──────────────────────────────┴─────────┘
 ```
 
-### 🐞 1. Incorrect Project Progress Calculation (`INV-001`)
+###  1. Incorrect Project Progress Calculation (`INV-001`)
 * **File Location**: `src/services/project_service.py:42`
 * **Root Cause Defect**: Condition `t.status != TaskStatus.DONE` inverted the progress metric, reporting incomplete tasks instead of completed ones.
 * **Surgical Fix**:
@@ -136,7 +136,7 @@ CodePilot includes three built-in benchmark bug investigations targetting real-w
 
 ---
 
-### 🐞 2. Task Status Update Not Persisting (`INV-002`)
+###  2. Task Status Update Not Persisting (`INV-002`)
 * **File Location**: `src/services/task_service.py:73`
 * **Root Cause Defect**: Function returned the task object without updating `task.status = status`, silently discarding status transitions.
 * **Surgical Fix**:
@@ -149,7 +149,7 @@ CodePilot includes three built-in benchmark bug investigations targetting real-w
 
 ---
 
-### 🐞 3. Task Filter Arguments Swapped (`INV-003`)
+###  3. Task Filter Arguments Swapped (`INV-003`)
 * **File Location**: `src/api/tasks.py:34`
 * **Root Cause Defect**: Query parameters `status` and `assignee_id` were passed in inverted positional order to the repository filter function.
 * **Surgical Fix**:
