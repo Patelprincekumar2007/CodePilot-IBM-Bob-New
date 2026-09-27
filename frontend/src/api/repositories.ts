@@ -46,7 +46,8 @@ export const repositoryApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('/api-backend/api/repositories/upload', {
+    const baseUrl = import.meta.env.DEV ? '/api-backend' : '';
+    const response = await fetch(`${baseUrl}/api/repositories/upload`, {
       method: 'POST',
       body: formData,
     });

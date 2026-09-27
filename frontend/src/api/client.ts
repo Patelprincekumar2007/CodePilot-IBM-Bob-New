@@ -1,6 +1,6 @@
 // Base API Client abstraction with timeout and error handling
 
-const API_BASE_URL = '/api-backend';
+const API_BASE_URL = import.meta.env.DEV ? '/api-backend' : '';
 
 export class ApiError extends Error {
   status: number;
