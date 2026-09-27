@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: 9 11 16;
+    --color-bg-elevated: 15 19 29;
+    --color-bg-card: 20 26 40;
+    --color-border: 34 43 61;
+    --color-text: 241 245 249;
+    --color-muted: 148 163 184;
+  }
+
+  * {
+    border-color: #222B3D;
+  }
+
+  body {
+    background-color: #090B10;
+    color: #F1F5F9;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  code, pre, kbd, samp {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0D111A;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #242F46;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3B4868;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(20, 26, 40, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(59, 130, 246, 0.12);
+  }
+  
+  .glow-border {
+    box-shadow: 0 0 15px -3px rgba(99, 102, 241, 0.25);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-indigo {
+    background: linear-gradient(135deg, #818CF8 0%, #C084FC 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
