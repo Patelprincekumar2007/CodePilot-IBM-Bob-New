@@ -24,6 +24,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       styles: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
       dotColor: 'bg-emerald-400',
     },
+    completed: {
+      label: 'COMPLETED',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />,
+      styles: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
+      dotColor: 'bg-sky-400',
+    },
     running: {
       label: 'RUNNING',
       icon: <Play className="w-3.5 h-3.5 animate-pulse text-amber-400" />,

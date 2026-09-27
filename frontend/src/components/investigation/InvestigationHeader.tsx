@@ -7,10 +7,14 @@ import {
   GitBranch,
   Clock,
   ExternalLink,
-  RotateCcw,
-  Sparkles,
   FileCheck2,
   Cpu,
+  Compass,
+  Layers,
+  Bug,
+  Search,
+  FlaskConical,
+  Code2,
 } from 'lucide-react';
 import { formatDuration, formatDate } from '../../lib/utils';
 
@@ -29,6 +33,22 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
 }) => {
   const isLiveAI = (investigation as any).isLiveAI;
   const aiProvider = (investigation as any).aiProvider || (investigation.isDemoScenario ? 'demo' : 'gemini');
+  const intent = investigation.intent || 'BUG_INVESTIGATION';
+
+  const getIntentIcon = (intentStr: string) => {
+    switch (intentStr.toUpperCase()) {
+      case 'OVERVIEW':
+        return <Compass className="w-3.5 h-3.5 text-sky-400" />;
+      case 'ARCHITECTURE':
+        return <Layers className="w-3.5 h-3.5 text-indigo-400" />;
+      case 'TEST_ANALYSIS':
+        return <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />;
+      case 'DEBUGGING':
+        return <Search className="w-3.5 h-3.5 text-amber-400" />;
+      default:
+        return <Bug className="w-3.5 h-3.5 text-rose-400" />;
+    }
+  };
 
   return (
     <div className="p-5 rounded-xl bg-background-elevated border border-border">
@@ -40,6 +60,12 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
               {investigation.id}
             </span>
             <StatusBadge status={investigation.status} />
+
+            {/* Intent Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-background border border-border text-xs font-mono text-white">
+              {getIntentIcon(intent)}
+              <span className="font-bold uppercase tracking-wider text-[11px]">{intent.replace('_', ' ')}</span>
+            </div>
 
             {/* AI Provider Badge */}
             <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-purple-950/30 border border-purple-500/30 text-xs font-mono text-purple-300">
@@ -66,13 +92,19 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
             {investigation.title}
           </h1>
 
-          <div className="flex items-center gap-4 text-xs font-mono text-console-muted pt-1">
+          <div className="flex items-center gap-4 text-xs font-mono text-console-muted pt-1 flex-wrap">
             <div className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-console-dim" />
               <span>Duration: {formatDuration(investigation.durationSeconds)}</span>
             </div>
             <span>•</span>
             <span>Created: {formatDate(investigation.createdAt)}</span>
+            {investigation.plan && investigation.plan.length > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-console-dim">Plan: {investigation.plan.length} stages executed</span>
+              </>
+            )}
             {investigation.issueUrl && (
               <>
                 <span>•</span>
@@ -92,19 +124,6 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {investigation.status === 'running' && onAdvanceStage && (
-            <Button
-              size="sm"
-              variant="secondary"
-              isLoading={isAdvancing}
-              onClick={onAdvanceStage}
-              leftIcon={<Sparkles className="w-3.5 h-3.5 text-accent-indigo" />}
-              className="font-mono text-xs"
-            >
-              Step Next Agent
-            </Button>
-          )}
-
           {investigation.status === 'verified' && onOpenReport && (
             <Button
               size="sm"
@@ -113,7 +132,7 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
               leftIcon={<FileCheck2 className="w-3.5 h-3.5" />}
               className="font-mono text-xs shadow-glow-indigo"
             >
-              View Verification Report
+              Verification Report
             </Button>
           )}
         </div>

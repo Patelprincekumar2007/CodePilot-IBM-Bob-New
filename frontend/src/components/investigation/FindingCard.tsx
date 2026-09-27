@@ -110,7 +110,7 @@ export const FindingCard: React.FC<FindingCardProps> = ({
         )}
 
         {/* Related Tests */}
-        {finding.relatedTests.length > 0 && (
+        {finding.relatedTests && finding.relatedTests.length > 0 && (
           <div className="flex items-center gap-2 text-[11px] text-console-dim">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Target Regression Suite:</span>

@@ -1,6 +1,6 @@
 """
-CodePilot — Grok AI Provider
-Uses xAI Grok API for reasoning across repository structures and formulating patches.
+CodePilot — Grok AI Universal Provider
+Uses xAI Grok (grok-2-latest) for universal codebase reasoning, architecture mapping, debugging, and test synthesis.
 """
 
 import json
@@ -8,7 +8,13 @@ import os
 from typing import Any, Dict, List, Optional
 import httpx
 
-from src.ai.base import AIProvider, AIAnalysisResult, RootCauseFinding, EvidenceItemModel
+from src.ai.base import (
+    AIProvider,
+    UniversalAnalysisResult,
+    FindingItem,
+    RootCauseFinding,
+    EvidenceItemModel,
+)
 
 
 class GrokProvider(AIProvider):
@@ -23,88 +29,91 @@ class GrokProvider(AIProvider):
     def is_configured(self) -> bool:
         return bool(self._api_key and len(self._api_key.strip()) > 5)
 
-    async def analyze_repository(self, repo_summary: Dict[str, Any]) -> Dict[str, Any]:
-        if not self.is_configured():
-            return {
-                "architecture": ["API Layer", "Service Layer", "Repository Layer"],
-                "frameworks": ["FastAPI", "Pydantic"],
-                "languages": ["Python"],
-                "test_framework": "pytest",
-            }
-
-        prompt = f"""You are a senior software architect. Analyze this repository:
-Files: {json.dumps(repo_summary.get('file_list', [])[:60])}
-Readme: {repo_summary.get('readme_excerpt', '')[:1000]}
-
-Return pure JSON with keys: "languages", "frameworks", "architecture", "entry_points", "summary"."""
-
-        try:
-            raw_resp = await self._call_grok(prompt)
-            return self._extract_json(raw_resp)
-        except Exception as e:
-            return {
-                "architecture": ["API Layer", "Service Layer"],
-                "frameworks": ["FastAPI"],
-                "languages": ["Python"],
-                "error": str(e),
-            }
-
-    async def analyze_issue(
+    async def analyze_universal(
         self,
         repo_context: Dict[str, Any],
-        issue: str,
-        expected: Optional[str] = None,
-        actual: Optional[str] = None,
-        reproduction: Optional[str] = None,
-    ) -> AIAnalysisResult:
+        request_text: str,
+        intent: str,
+        depth: str,
+        relevant_files: List[str],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> UniversalAnalysisResult:
         if not self.is_configured():
             raise ValueError("GROK_API_KEY / XAI_API_KEY is not configured in backend environment.")
 
-        files_context = repo_context.get("files_content", {})
+        files_content = repo_context.get("files_content", {})
         files_summary = ""
-        for file_path, content in list(files_context.items())[:15]:
-            files_summary += f"\n--- FILE: {file_path} ---\n{content[:2500]}\n"
+        for file_path in relevant_files[:12]:
+            if file_path in files_content:
+                files_summary += f"\n--- FILE: {file_path} ---\n{files_content[file_path][:3000]}\n"
 
-        prompt = f"""You are CodePilot's autonomous Debug & Root Cause Analysis Agent powered by Grok.
-Investigate this defect in the repository:
+        history_summary = ""
+        if conversation_history:
+            history_summary = "PRIOR CONVERSATION CONTEXT:\n"
+            for msg in conversation_history[-4:]:
+                history_summary += f"{msg.get('role', 'user').upper()}: {msg.get('content', '')}\n"
 
-ISSUE:
-{issue}
-Expected: {expected or 'N/A'}
-Actual: {actual or 'N/A'}
-Reproduction: {reproduction or 'N/A'}
+        prompt = f"""You are CodePilot's autonomous AI Software Engineer powered by Grok.
 
-SOURCE FILES:
+REPOSITORY:
+Name: {repo_context.get('name', 'repository')}
+Languages: {repo_context.get('languages', ['Python'])}
+Frameworks: {repo_context.get('frameworks', ['FastAPI'])}
+Files: {json.dumps(repo_context.get('all_files', [])[:50])}
+
+USER REQUEST:
+"{request_text}"
+
+INTENT: {intent} (Depth: {depth})
+{history_summary}
+
+SOURCE CODE:
 {files_summary}
 
-Respond with pure JSON following this exact structure:
+Respond in pure valid JSON conforming to this schema:
 {{
-  "summary": "Summary of root cause",
+  "intent": "{intent}",
+  "summary": "Concise 1-2 sentence executive summary",
+  "answer": "Comprehensive Markdown-formatted technical response.",
+  "execution_flow": ["Step 1", "Step 2", "Step 3"],
   "root_cause": {{
     "file": "path/to/file.py",
-    "function": "function_name",
+    "function": "func_name",
     "line": 42,
     "line_end": 44,
-    "title": "Title of bug",
+    "title": "Bug Title",
     "explanation": "Detailed explanation",
     "confidence": 0.98,
     "severity": "high",
-    "code_snippet": "buggy snippet",
-    "fixed_snippet": "fixed snippet"
+    "code_snippet": "buggy code",
+    "fixed_snippet": "fixed code"
   }},
+  "findings": [
+    {{
+      "title": "Finding Title",
+      "type": "bug",
+      "file": "path/to/file.py",
+      "line": 42,
+      "severity": "high",
+      "confidence": 0.95,
+      "description": "Details",
+      "code_snippet": "snippet",
+      "fixed_snippet": "fix"
+    }}
+  ],
   "relevant_files": ["path/to/file.py"],
   "evidence": [
     {{
       "category": "Root Cause",
-      "title": "Evidence title",
+      "title": "Evidence Title",
       "file": "path/to/file.py",
       "line": 42,
-      "observed": "Observed faulty condition",
-      "expected": "Expected behavior",
-      "details": "Details"
+      "observed": "Observed state",
+      "expected": "Expected state",
+      "details": "Technical detail"
     }}
   ],
-  "impact": ["Endpoint 1", "Service 2"],
+  "impact": ["Component A", "Component B"],
   "recommended_fix": {{
     "summary": "Fix explanation",
     "files": ["path/to/file.py"]
@@ -115,21 +124,56 @@ Respond with pure JSON following this exact structure:
         raw_resp = await self._call_grok(prompt)
         parsed = self._extract_json(raw_resp)
 
-        rc_data = parsed.get("root_cause", {})
-        evidence_list = [
-            EvidenceItemModel(**item) for item in parsed.get("evidence", [])
-        ]
+        rc_data = parsed.get("root_cause")
+        root_cause_obj = RootCauseFinding(**rc_data) if rc_data and rc_data.get("file") else None
 
-        return AIAnalysisResult(
+        findings_list = []
+        for f in parsed.get("findings", []):
+            try:
+                findings_list.append(FindingItem(**f))
+            except Exception:
+                pass
+
+        if root_cause_obj and not findings_list:
+            findings_list.append(
+                FindingItem(
+                    title=root_cause_obj.title,
+                    type="bug",
+                    file=root_cause_obj.file,
+                    function_name=root_cause_obj.function,
+                    line=root_cause_obj.line,
+                    line_end=root_cause_obj.line_end,
+                    severity=root_cause_obj.severity,
+                    confidence=root_cause_obj.confidence,
+                    code_snippet=root_cause_obj.code_snippet,
+                    fixed_snippet=root_cause_obj.fixed_snippet,
+                    description=root_cause_obj.explanation,
+                )
+            )
+
+        evidence_list = []
+        for ev in parsed.get("evidence", []):
+            try:
+                evidence_list.append(EvidenceItemModel(**ev))
+            except Exception:
+                pass
+
+        return UniversalAnalysisResult(
             provider="grok",
             is_live_ai=True,
-            summary=parsed.get("summary", "Root cause identified by Grok"),
-            root_cause=RootCauseFinding(**rc_data),
-            relevant_files=parsed.get("relevant_files", []),
+            intent=parsed.get("intent", intent),
+            depth=depth,
+            plan=repo_context.get("plan", []),
+            summary=parsed.get("summary", "Analysis complete."),
+            answer=parsed.get("answer", parsed.get("summary", "")),
+            findings=findings_list,
+            root_cause=root_cause_obj,
+            relevant_files=parsed.get("relevant_files", relevant_files[:5]),
             evidence=evidence_list,
             impact=parsed.get("impact", []),
-            recommended_fix=parsed.get("recommended_fix", {}),
+            recommended_fix=parsed.get("recommended_fix"),
             suggested_tests=parsed.get("suggested_tests", []),
+            execution_flow=parsed.get("execution_flow", []),
         )
 
     async def _call_grok(self, prompt: str) -> str:
@@ -141,7 +185,7 @@ Respond with pure JSON following this exact structure:
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "You are a code debugging agent that always outputs valid JSON."},
+                {"role": "system", "content": "You are a senior software engineer that responds in pure valid JSON."},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.1,

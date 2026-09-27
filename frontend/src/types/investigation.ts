@@ -13,14 +13,15 @@ export type InvestigationStatus =
   | 'waiting_approval'
   | 'verified'
   | 'failed'
-  | 'rejected';
+  | 'rejected'
+  | 'completed';
 
-export type Severity = 'critical' | 'high' | 'medium' | 'low';
+export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type RiskLevel = 'high' | 'medium' | 'low';
 
 export interface Finding {
   id: string;
-  type: 'root_cause' | 'defect' | 'side_effect' | 'code_smell';
+  type: string; // 'root_cause' | 'defect' | 'side_effect' | 'bug' | 'architecture' | 'security' | 'performance' | 'test_gap'
   title: string;
   description: string;
   file: string;
@@ -32,7 +33,7 @@ export interface Finding {
   evidenceId?: string;
   codeSnippet: string;
   fixedSnippet?: string;
-  relatedTests: string[];
+  relatedTests?: string[];
 }
 
 export interface DiffChange {
@@ -122,10 +123,26 @@ export interface IndependentReview {
   completedAt?: string;
 }
 
+export interface FollowUpItem {
+  question: string;
+  answer: string;
+  intent?: string;
+  provider?: string;
+  timestamp: string;
+  relevantFiles?: string[];
+}
+
 export interface Investigation {
   id: string; // e.g. "INV-001"
   title: string;
   issueDescription: string;
+  intent?: string;
+  depth?: string;
+  plan?: string[];
+  answer?: string;
+  summary?: string;
+  executionFlow?: string[];
+  relevantFiles?: string[];
   expectedBehavior?: string;
   actualBehavior?: string;
   reproductionSteps?: string;
@@ -168,6 +185,10 @@ export interface Investigation {
   // Validation & Reviews
   testRun?: TestRunSummary;
   review?: IndependentReview;
+
+  // Multi-turn Follow-ups
+  conversationId?: string;
+  followUps?: FollowUpItem[];
 }
 
 export interface CreateInvestigationInput {
@@ -175,6 +196,7 @@ export interface CreateInvestigationInput {
   branch: string;
   issue: string;
   ai_provider?: string;
+  conversation_id?: string;
   expectedBehavior?: string;
   actualBehavior?: string;
   reproductionSteps?: string;

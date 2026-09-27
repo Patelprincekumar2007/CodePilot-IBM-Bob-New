@@ -1,6 +1,6 @@
 """
-CodePilot — Gemini AI Provider
-Uses Google Gemini API for deep code understanding, AST reasoning, and fix formulation.
+CodePilot — Gemini AI Universal Provider
+Uses Google Gemini (gemini-1.5-flash / gemini-1.5-pro) for universal codebase reasoning, architecture mapping, debugging, and test synthesis.
 """
 
 import json
@@ -9,7 +9,13 @@ import re
 from typing import Any, Dict, List, Optional
 import httpx
 
-from src.ai.base import AIProvider, AIAnalysisResult, RootCauseFinding, EvidenceItemModel
+from src.ai.base import (
+    AIProvider,
+    UniversalAnalysisResult,
+    FindingItem,
+    RootCauseFinding,
+    EvidenceItemModel,
+)
 
 
 class GeminiProvider(AIProvider):
@@ -24,100 +30,113 @@ class GeminiProvider(AIProvider):
     def is_configured(self) -> bool:
         return bool(self._api_key and len(self._api_key.strip()) > 5)
 
-    async def analyze_repository(self, repo_summary: Dict[str, Any]) -> Dict[str, Any]:
-        if not self.is_configured():
-            return {
-                "architecture": ["API Layer", "Service Layer", "Repository Layer", "Model Layer"],
-                "frameworks": ["FastAPI", "Pydantic"],
-                "languages": ["Python"],
-                "test_framework": "pytest",
-            }
-
-        prompt = f"""You are a principal software architect. Analyze this repository structure:
-Repository Files: {json.dumps(repo_summary.get('file_list', [])[:60])}
-Readme excerpt: {repo_summary.get('readme_excerpt', '')[:1000]}
-
-Return pure JSON with keys: "languages" (list), "frameworks" (list), "architecture" (list), "entry_points" (list), "summary" (string)."""
-
-        try:
-            raw_resp = await self._call_gemini(prompt)
-            data = self._extract_json(raw_resp)
-            return data
-        except Exception as e:
-            return {
-                "architecture": ["API Layer", "Service Layer", "Repository Layer"],
-                "frameworks": ["FastAPI"],
-                "languages": ["Python"],
-                "error": str(e),
-            }
-
-    async def analyze_issue(
+    async def analyze_universal(
         self,
         repo_context: Dict[str, Any],
-        issue: str,
-        expected: Optional[str] = None,
-        actual: Optional[str] = None,
-        reproduction: Optional[str] = None,
-    ) -> AIAnalysisResult:
+        request_text: str,
+        intent: str,
+        depth: str,
+        relevant_files: List[str],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> UniversalAnalysisResult:
         if not self.is_configured():
             raise ValueError("GEMINI_API_KEY is not configured in backend environment.")
 
-        # Build prioritized context of important source files
-        files_context = repo_context.get("files_content", {})
+        # Build focused context of source files
+        files_content = repo_context.get("files_content", {})
         files_summary = ""
-        for file_path, content in list(files_context.items())[:15]:
-            files_summary += f"\n--- FILE: {file_path} ---\n{content[:2500]}\n"
+        for file_path in relevant_files[:12]:
+            if file_path in files_content:
+                files_summary += f"\n--- FILE: {file_path} ---\n{files_content[file_path][:3000]}\n"
 
-        prompt = f"""You are CodePilot's autonomous Debug & Root Cause Analysis Agent.
-You are investigating a software defect in a real repository.
+        history_summary = ""
+        if conversation_history:
+            history_summary = "PRIOR CONVERSATION CONTEXT:\n"
+            for msg in conversation_history[-4:]:
+                history_summary += f"{msg.get('role', 'user').upper()}: {msg.get('content', '')}\n"
 
-ISSUE REPORT:
-Issue: {issue}
-Expected: {expected or 'Not specified'}
-Actual: {actual or 'Not specified'}
-Reproduction: {reproduction or 'Not specified'}
+        prompt = f"""You are CodePilot's autonomous AI Software Engineer & Repository Reasoner powered by Gemini.
 
-REPOSITORY SOURCE CODE:
+REPOSITORY METADATA:
+Project Name: {repo_context.get('name', 'repository')}
+Languages: {repo_context.get('languages', ['Python'])}
+Frameworks: {repo_context.get('frameworks', ['FastAPI'])}
+Test Framework: {repo_context.get('test_framework', 'pytest')}
+All Verified Repository Files: {json.dumps(repo_context.get('all_files', [])[:50])}
+
+USER REQUEST:
+"{request_text}"
+
+DETECTED INTENT: {intent} (Depth: {depth})
+{history_summary}
+
+RELEVANT SOURCE CODE:
 {files_summary}
 
-TASK:
-1. Identify the EXACT file and line number containing the root cause defect.
-2. Formulate a precise explanation of the bug (what condition/code was wrong).
-3. Provide the existing buggy code snippet and the exact fixed code snippet.
-4. Provide structured evidence distinguishing observed vs expected behavior.
-5. Identify affected downstream components and recommend 2-3 regression tests.
+INSTRUCTIONS:
+1. Provide a clear, thorough, human-friendly technical answer in Markdown formatting.
+2. If this is a BUG_INVESTIGATION, DEBUGGING, or ERROR_ANALYSIS:
+   - Isolate root cause with exact file and line number.
+   - Explain what code condition is erroneous.
+   - Provide original code snippet and recommended fixed replacement snippet.
+   - Formulate structured evidence distinguishing observed vs expected behavior.
+   - Trace the execution flow through routes, services, and repositories.
+   - Suggest 2-3 regression tests.
+3. If this is an OVERVIEW or ARCHITECTURE query:
+   - Provide high-level system architecture, module boundaries, entry points, and request flows.
+4. If this is a TEST_ANALYSIS query:
+   - Contrast implementation logic with existing test files and identify untested edge cases.
+5. If this is a CODE_EXPLANATION or API_ANALYSIS query:
+   - Trace step-by-step logic and identify important functions.
+6. CRITICAL: Reference ONLY verified files that exist in the repository list. Never hallucinate fake paths.
 
-Return ONLY pure valid JSON in the following schema:
+Return ONLY pure valid JSON in this exact schema:
 {{
-  "summary": "Short 1-sentence summary of the defect",
+  "intent": "{intent}",
+  "summary": "Short 1-2 sentence executive summary",
+  "answer": "Detailed, high-quality Markdown formatted answer with technical breakdown, code snippets, and explanations.",
+  "execution_flow": ["Step 1: POST /endpoint", "Step 2: Service call", "Step 3: Repository persistence"],
   "root_cause": {{
     "file": "exact/relative/file/path.py",
     "function": "function_name",
     "line": 42,
     "line_end": 44,
-    "title": "Clear concise defect title",
-    "explanation": "Detailed root cause explanation",
+    "title": "Clear defect title",
+    "explanation": "Root cause explanation",
     "confidence": 0.98,
     "severity": "high",
-    "code_snippet": "original buggy lines",
-    "fixed_snippet": "fixed replacement lines"
+    "code_snippet": "buggy lines",
+    "fixed_snippet": "fixed lines"
   }},
-  "relevant_files": ["exact/file/path1.py", "exact/file/path2.py"],
+  "findings": [
+    {{
+      "title": "Finding or defect title",
+      "type": "bug",
+      "file": "exact/file/path.py",
+      "line": 42,
+      "severity": "high",
+      "confidence": 0.95,
+      "description": "Explanation",
+      "code_snippet": "faulty snippet",
+      "fixed_snippet": "fixed snippet"
+    }}
+  ],
+  "relevant_files": ["exact/file1.py", "exact/file2.py"],
   "evidence": [
     {{
       "category": "Root Cause",
-      "title": "Evidence description",
-      "file": "exact/file/path.py",
+      "title": "Evidence title",
+      "file": "exact/file.py",
       "line": 42,
       "observed": "Observed faulty condition",
-      "expected": "Expected correct behavior",
+      "expected": "Expected behavior",
       "details": "Technical detail"
     }}
   ],
   "impact": ["Affected API endpoint", "Affected Service"],
   "recommended_fix": {{
     "summary": "Fix summary",
-    "files": ["exact/file/path.py"],
+    "files": ["exact/file.py"],
     "changes": "+1, -1"
   }},
   "suggested_tests": ["test_name_1", "test_name_2"]
@@ -126,21 +145,59 @@ Return ONLY pure valid JSON in the following schema:
         raw_resp = await self._call_gemini(prompt)
         parsed = self._extract_json(raw_resp)
 
-        rc_data = parsed.get("root_cause", {})
-        evidence_list = [
-            EvidenceItemModel(**item) for item in parsed.get("evidence", [])
-        ]
+        # Parse root cause if present
+        rc_data = parsed.get("root_cause")
+        root_cause_obj = RootCauseFinding(**rc_data) if rc_data and rc_data.get("file") else None
 
-        return AIAnalysisResult(
+        # Parse findings
+        findings_list = []
+        for f in parsed.get("findings", []):
+            try:
+                findings_list.append(FindingItem(**f))
+            except Exception:
+                pass
+
+        # If we have root_cause but no findings, create a finding from root_cause
+        if root_cause_obj and not findings_list:
+            findings_list.append(
+                FindingItem(
+                    title=root_cause_obj.title,
+                    type="bug",
+                    file=root_cause_obj.file,
+                    function_name=root_cause_obj.function,
+                    line=root_cause_obj.line,
+                    line_end=root_cause_obj.line_end,
+                    severity=root_cause_obj.severity,
+                    confidence=root_cause_obj.confidence,
+                    code_snippet=root_cause_obj.code_snippet,
+                    fixed_snippet=root_cause_obj.fixed_snippet,
+                    description=root_cause_obj.explanation,
+                )
+            )
+
+        evidence_list = []
+        for ev in parsed.get("evidence", []):
+            try:
+                evidence_list.append(EvidenceItemModel(**ev))
+            except Exception:
+                pass
+
+        return UniversalAnalysisResult(
             provider="gemini",
             is_live_ai=True,
-            summary=parsed.get("summary", "Root cause identified"),
-            root_cause=RootCauseFinding(**rc_data),
-            relevant_files=parsed.get("relevant_files", []),
+            intent=parsed.get("intent", intent),
+            depth=depth,
+            plan=repo_context.get("plan", []),
+            summary=parsed.get("summary", "Analysis completed successfully."),
+            answer=parsed.get("answer", parsed.get("summary", "")),
+            findings=findings_list,
+            root_cause=root_cause_obj,
+            relevant_files=parsed.get("relevant_files", relevant_files[:5]),
             evidence=evidence_list,
             impact=parsed.get("impact", []),
-            recommended_fix=parsed.get("recommended_fix", {}),
+            recommended_fix=parsed.get("recommended_fix"),
             suggested_tests=parsed.get("suggested_tests", []),
+            execution_flow=parsed.get("execution_flow", []),
         )
 
     async def _call_gemini(self, prompt: str) -> str:

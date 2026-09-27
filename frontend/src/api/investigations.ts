@@ -349,4 +349,11 @@ export const investigationApi = {
       return testRun;
     }
   },
+
+  followUp: async (id: string, question: string, ai_provider?: string): Promise<{ question: string; answer: string; intent?: string; provider?: string }> => {
+    return await apiClient<{ question: string; answer: string; intent?: string; provider?: string }>(`/api/investigations/${id}/follow-up`, {
+      method: 'POST',
+      body: JSON.stringify({ question, ai_provider: ai_provider || 'auto' }),
+    });
+  },
 };

@@ -14,20 +14,62 @@ import {
   Upload,
   Globe,
   CheckCircle2,
-  Cpu,
-  FileCode,
-  Loader2,
+  Compass,
+  Layers,
+  Bug,
+  Search,
+  FlaskConical,
+  FileCode2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const quickSchema = z.object({
   repository: z.string().min(1),
   branch: z.string().min(1),
-  issue: z.string().min(5, 'Please enter a bug or issue description to investigate'),
+  issue: z.string().min(3, 'Please enter a question or defect description to analyze'),
   ai_provider: z.string().default('auto'),
 });
 
 type QuickFormData = z.infer<typeof quickSchema>;
+
+const QUICK_PROMPTS = [
+  {
+    icon: Compass,
+    label: 'Overview',
+    prompt: 'Give me an overview of this repository and explain the main components.',
+    color: 'text-sky-400 bg-sky-500/10 border-sky-500/30 hover:border-sky-400',
+  },
+  {
+    icon: Layers,
+    label: 'Architecture',
+    prompt: 'Explain the architecture and end-to-end request flow of this project.',
+    color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30 hover:border-indigo-400',
+  },
+  {
+    icon: Bug,
+    label: 'Debug Issue',
+    prompt: 'Why is project progress percentage calculation incorrect when some tasks are incomplete?',
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:border-rose-400',
+  },
+  {
+    icon: Search,
+    label: 'Find Bugs',
+    prompt: 'Find bugs, inverted conditions, and unpersisted mutations across this codebase.',
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/30 hover:border-amber-400',
+  },
+  {
+    icon: FlaskConical,
+    label: 'Missing Tests',
+    prompt: 'What tests and edge cases are missing in this codebase?',
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400',
+  },
+  {
+    icon: FileCode2,
+    label: 'Explain File',
+    prompt: 'Explain src/services/project_service.py and its core responsibilities.',
+    color: 'text-purple-400 bg-purple-500/10 border-purple-500/30 hover:border-purple-400',
+  },
+];
 
 export const IssueComposer: React.FC = () => {
   const { createInvestigation, isCreating } = useInvestigations();
@@ -58,7 +100,6 @@ export const IssueComposer: React.FC = () => {
   });
 
   const selectedRepo = watch('repository');
-  const selectedProvider = watch('ai_provider');
   const currentRepo = repos?.find((r) => r.name === selectedRepo) || repos?.[0];
   const branches = currentRepo?.branches || ['main', 'feature/frontend-react-ui'];
 
@@ -126,11 +167,11 @@ export const IssueComposer: React.FC = () => {
                 <Sparkles className="w-4 h-4" />
               </span>
               <h2 className="text-lg font-bold font-mono tracking-tight text-white">
-                What are you investigating?
+                What would you like to know about this repository?
               </h2>
             </div>
             <p className="mt-1 text-xs text-console-muted font-sans">
-              Enter a defect, broken endpoint, error trace, or symptom to dispatch autonomous debugging agents.
+              Ask anything: high-level architecture, module explanations, defect debugging, test gap analysis, or API flow tracing.
             </p>
           </div>
 
@@ -249,10 +290,28 @@ export const IssueComposer: React.FC = () => {
           </div>
         )}
 
-        {/* Issue Input Form */}
+        {/* Quick Suggestion Chips */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {QUICK_PROMPTS.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setValue('issue', item.prompt)}
+                className={`px-2.5 py-1 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-all ${item.color}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Natural Language Query Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 font-mono text-xs">
-          {/* Target Repo & AI Provider Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Target Repo & Branch */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Repo */}
             <div>
               <label className="block text-console-muted mb-1 font-semibold flex items-center gap-1.5">
@@ -288,23 +347,6 @@ export const IssueComposer: React.FC = () => {
                 ))}
               </select>
             </div>
-
-            {/* AI Provider */}
-            <div>
-              <label className="block text-console-muted mb-1 font-semibold flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-purple-400" />
-                <span>AI Reasoner</span>
-              </label>
-              <select
-                {...register('ai_provider')}
-                className="w-full px-3 py-1.5 rounded bg-background-elevated border border-border text-indigo-300 font-bold focus:outline-none focus:border-accent-indigo"
-              >
-                <option value="auto">Auto (Gemini / Grok / Local)</option>
-                <option value="gemini">Google Gemini (GenAI)</option>
-                <option value="grok">xAI Grok (grok-2)</option>
-                <option value="demo-ast">IBM Bob 2.0 AST Engine</option>
-              </select>
-            </div>
           </div>
 
           {/* Issue Prompt Textarea */}
@@ -312,7 +354,7 @@ export const IssueComposer: React.FC = () => {
             <textarea
               rows={3}
               {...register('issue')}
-              placeholder="e.g. Project progress percentage is incorrect when a project contains both completed and incomplete tasks..."
+              placeholder="e.g. Give me an overview of this repository, or find why project progress calculation is incorrect..."
               className="w-full p-4 rounded-xl bg-background/90 border border-border text-console-text placeholder:text-console-dim focus:outline-none focus:border-accent-indigo text-sm font-sans focus:ring-1 focus:ring-accent-indigo resize-none"
             />
           </div>
@@ -326,7 +368,7 @@ export const IssueComposer: React.FC = () => {
               <span>•</span>
               <span>🛡️ Regression synthesis</span>
               <span>•</span>
-              <span>🤖 Gemini / Grok / Bob connected</span>
+              <span>🤖 Gemini / Grok connected</span>
             </div>
 
             <Button
@@ -336,7 +378,7 @@ export const IssueComposer: React.FC = () => {
               rightIcon={<ArrowRight className="w-4 h-4" />}
               className="shadow-glow-indigo font-bold text-xs"
             >
-              Start Investigation
+              Analyze Codebase
             </Button>
           </div>
         </form>
